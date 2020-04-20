@@ -54,19 +54,35 @@ def validate_message(bot, message):
     admin_ids = open("admin_ids.txt").read().split("\n")
     
     if message.new_chat_members:
-        if (message.new_chat_members[0]["username"] in blacklist_users) or (message.new_chat_members[0]["id"] in blacklist_users):
+        if (message.new_chat_members[0]["username"] in blacklist_users) or (message.new_chat_members[0]["id"] in blacklist_users): # Blacklist
             message.chat.kick_member(
                 message.new_chat_members[0]["id"]
                 )
             bot.send_message(
                 chat_id=message.chat.id,
-                text="{username} has been banned ! 😠 \nReason : Blacklist".format(
+                text="{username} has been banned ! 😠 \nReason : Blacklisted".format(
                     username=message.new_chat_members[0].name
                     )
                 )
-            print("Banned @{username} : Blacklist".format(
+            print("Banned @{username} : Blacklisted".format(
                 username=message.new_chat_members[0]["username"]
                 ))
+            return
+        for part in warning_text: #Username ban
+            if part in message.new_chat_members[0]["username"]:
+                message.chat.kick_member(
+                    message.new_chat_members[0]["id"]
+                    )
+                bot.send_message(
+                    chat_id=message.chat.id,
+                    text="{username} has been banned ! 😠 \nReason : Weird username".format(
+                        username=message.new_chat_members[0].name
+                        )
+                    )
+                print("Banned @{username} : Weird username".format(
+                    username=message.new_chat_members[0]["username"]
+                    ))
+            return
     if message["text"]:
         print("Text message : " + message.text)
         for part in warning_text:
