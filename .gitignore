@@ -1,2 +1,5 @@
 .vscode/settings.json
 TOKEN
+admin_ids.txt
+blacklist_users.txt
+warning_text.txt
