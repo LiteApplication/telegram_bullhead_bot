@@ -51,7 +51,9 @@ def check_messages(bot):
 def validate_message(bot, message):
     blacklist_users = open("blacklist_users.txt").read().split("\n")
     warning_text = open("warning_text.txt").read().split("\n")
-    admin_ids = open("admin_ids.txt").read().split("\n")
+    admin_ids = [ for x in open("admin_ids.txt").read().split("\n") if x]
+    chat_admins = bot.get_chat_administrators(message.chat.id)
+    chat_admins = [x.user.id for x in chat_admins]
     
     if message.new_chat_members:
         if (message.new_chat_members[0]["username"] in blacklist_users) or (message.new_chat_members[0]["id"] in blacklist_users): # Blacklist
@@ -100,26 +102,55 @@ def validate_message(bot, message):
                             ))
                         bot.forward_message(admin, message.chat.id, message.message_id, disable_notification=True)
                 break
-        if message.text == "/moderator" or message.text == "/moderator@bullhead_bot":
-            if message.reply_to_message:
-                open("admin_ids.txt", 'a').write("\n" + str(message.reply_to_message.from_user.id))
-                message.reply_text("Added to moderator list. \n{user} please click [here](t.me/bullhead_bot) and start to allow the bot to notify you. ".format(user=message.reply_to_message.from_user.name))
-            else:
-                open("admin_ids.txt", 'a').write("\n" + str(message.from_user.id))
-                message.reply_text("Added to moderator list. \n{user} please click [here](t.me/bullhead_bot) and start to allow the bot to notify you. ".format(user=message.from_user.name))
-        if message.text.startswith("/ban"):
-            if message.reply_to_message:
-                message.chat.kick_member(
-                    message.new_chat_members[0]["id"]
+        print(admin_ids)
+        print(chat_admins)
+        print(message.from_user.id)
+        if str(message.from_user.id) in admin_ids:
+            if (message.text == "/moderator" or message.text == "/moderator@bullhead_bot") and (message.from_user.id in chat_admins):
+                if str(message.reply_to_message.from_user.id) in admin_ids:
+                    message.reply_text(message.reply_to_message.from_user.name + " is already a moderator. ")
+                    return
+                if message.reply_to_message:
+                    open("admin_ids.txt", 'a').write("\n" + str(message.reply_to_message.from_user.id))
+                    message.reply_text("Added to moderator list. \n{user} please click [here](t.me/bullhead_bot) and start to allow the bot to notify you. ".format(user=message.reply_to_message.from_user.name))
+                else:
+                    open("admin_ids.txt", 'a').write("\n" + str(message.from_user.id))
+                    message.reply_text("Added to moderator list. \n{user} please click [here](t.me/bullhead_bot) and start to allow the bot to notify you. ".format(user=message.from_user.name))
+            elif message.text.startswith("/ban"):
+                if message.reply_to_message:
+                    message.chat.kick_member(
+                        message.reply_to_message.from_user.id
+                    )
+                    if message.text[4:].startswith("@bullhead_bot"): message.text = "/ban " + message.text[18:]
+                    bot.send_message(
+                        chat_id=message.chat.id,
+                        text="{username} has been banned ! 😠 \nReason : {reason}".format(
+                            username=message.reply_to_message.from_user.name,
+                            reason=message.text[4:]
+                        ))
+                    print("Banned {username} : Manual ban ({reason})".format(
+                        username=message.reply_to_message.from_user.name,
+                        reason=message.text[4:]
+                        ))
+            elif message.text.startswith("/unmoderator") and (message.from_user.id in chat_admins):
+                if message.reply_to_message:
+                    for i, line in enumerate(admin_ids):
+                        if str(message.reply_to_message.from_user.id) == line:
+                            del admin_ids[i]
+                            os.remove("admin_ids.txt")
+                            with open("admin_ids.txt", 'a') as f:
+                                for admin in admin_ids:
+                                    f.write(admin + "\n")
+                            bot.send_message(message.chat.id, "Done. ")
+                            return
+
+
+        elif message.text in ["/moderator", "/moderator@bullhead_bot", "/ban", "/ban@bullhead_bot"]:
+            bot.send_message(
+                chat_id=message.chat.id,
+                text="Why does non-moderator tell me what to do ?"
                 )
-                bot.send_message(
-                    chat_id=message.chat.id,
-                    text="{username} has been banned ! 😠 \nReason : Blacklist".format(
-                        username=message.new_chat_members[0].name
-                    ))
-            print("Banned @{username} : Blacklist".format(
-                username=message.new_chat_members[0]["username"]
-                ))
+
 
                 
 
