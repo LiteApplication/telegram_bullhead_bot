@@ -65,11 +65,10 @@ def check_messages(bot):
                     chat_id=update.message.chat.id,
                     text="Chat not in list, remove this bot from your chat."
                     )
-            print()
 def validate_message(bot, message):
     global admin_ids
     blacklist_users = open("blacklist_users.txt").read().split("\n")
-    warning_text = open("warning_text.txt").read().split("\n")
+    warning_text = [x for x in open("warning_text.txt").read().split("\n") if x]
     admin_ids = [ x for x in open("admin_ids.txt").read().split("\n") if x]
     if message.chat.type == "private":
         chat_admins = []
@@ -146,6 +145,7 @@ def validate_message(bot, message):
                     message.chat.kick_member(
                         message.reply_to_message.from_user.id
                     )
+                    open("blacklist_users.txt", "a").write(int(message.reply_to_message.from_user.id))
                     if message.text[4:].startswith("@bullhead_bot"): message.text = "/ban " + message.text[18:]
                     bot.send_message(
                         chat_id=message.chat.id,
@@ -170,10 +170,12 @@ def validate_message(bot, message):
                             bot.send_message(message.chat.id, "Done. ")
                             return
             elif message.text.startswith("Ban "):
-                banId = re.search(r"Ban (.+?) \(Username : (.+?)\) from (.+?).", message.text).group(1)
-                groupId = re.search(r"Ban (.+?) \(Username : (.+?)\) from (.+?).", message.text).group(3)
-                username = re.search(r"Ban (.+?) \(Username : (.+?)\) from (.+?).", message.text).group(2)
+                regex = re.search(r"Ban (.+?) \(Username : (.+?)\) from (.+?)\.", message.text)
+                banId = regex.group(1)
+                groupId = regex.group(3)
+                username = regex.group(2)
                 bot.kick_chat_member(chat_id=int(groupId), user_id=int(banId))
+                open("blacklist_users.txt", "a").write(str(banId))
                 bot.send_message(
                     chat_id=groupId,
                     text="{username} has been banned ! 😠 \nReason : Spammer".format(
