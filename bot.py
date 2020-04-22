@@ -35,10 +35,10 @@ def main(TOKEN: str):
     while True:
         try:
             check_messages(bot)    
-        #except NetworkError:
-        #    sleep(1)
-        #except Unauthorized:
-        #    update_id += 1
+        except NetworkError:
+            sleep(1)
+        except Unauthorized:
+            update_id += 1
         except (KeyboardInterrupt, SystemExit):
             print()
             print("Bye")
@@ -55,7 +55,9 @@ def check_messages(bot):
         update_id = update.update_id + 1
 
         if update.message:
-            if (str(update.message.chat.id)  in authorized_chats) and (update.message.chat.type == "supergroup"):
+            if (str(update.message.chat.id)  in authorized_chats) and (update.message.chat.type == "group"):
+                validate_message(bot, update.message)
+            elif (str(update.message.chat.id)  in authorized_chats) and (update.message.chat.type == "supergroup"):
                 validate_message(bot, update.message)
             elif (str(update.message.chat.id)  in admin_ids) and (update.message.chat.type == "private"):
                 validate_message(bot, update.message)
@@ -67,7 +69,7 @@ def check_messages(bot):
                     )
 def validate_message(bot, message):
     global admin_ids
-    blacklist_users = open("blacklist_users.txt").read().split("\n")
+    blacklist_users = [x for x in open("blacklist_users.txt").read().split("\n") if x]
     warning_text = [x for x in open("warning_text.txt").read().split("\n") if x]
     admin_ids = [ x for x in open("admin_ids.txt").read().split("\n") if x]
     if message.chat.type == "private":
@@ -76,9 +78,9 @@ def validate_message(bot, message):
         chat_admins = bot.get_chat_administrators(message.chat.id)
     chat_admins = [x.user.id for x in chat_admins]
     if message.new_chat_members:
-        if (message.new_chat_members[0]["username"] in blacklist_users) or (message.new_chat_members[0]["id"] in blacklist_users): # Blacklist
+        if (message.new_chat_members[0]["username"] in blacklist_users) or (str(message.new_chat_members[0]["id"]) in blacklist_users): # Blacklist
             message.chat.kick_member(
-                message.new_chat_members[0]["id"]
+                int(message.new_chat_members[0]["id"])
                 )
             bot.send_message(
                 chat_id=message.chat.id,
@@ -106,26 +108,27 @@ def validate_message(bot, message):
                     ))
             return
     elif message["text"]:
+        needBan = False
         for part in warning_text:
             if part in message["text"].lower():
-                custom_keyboard = [["Ban {} (Username : {}) from {}.".format(str(message.from_user.id), message.from_user.name, str(message.chat.id)), "Don't ban  {}".format( message.from_user.name)  ]]
-                reply_markup = telegram.ReplyKeyboardMarkup(
-                    custom_keyboard, one_time_keyboard=True, selective=True)
-                message.reply_text(
-                    text="⚠️ WARNING ⚠️\n {username} have sent a suspicious message ...".format(
-                        username=message.from_user.name,
-                        )
+                needBan=True
+        if needBan:
+            custom_keyboard = [["Ban {} (Username : {}) from {}.".format(str(message.from_user.id), message.from_user.name, str(message.chat.id)), "Don't ban  {}".format( message.from_user.name)  ]]
+            reply_markup = telegram.ReplyKeyboardMarkup(
+                custom_keyboard, one_time_keyboard=True, selective=True)
+            message.reply_text(
+                text="⚠️ WARNING ⚠️\n {username} has sent a suspicious message ...".format(
+                    username=message.from_user.name,
                     )
-                for admin in admin_ids:
-                    if admin:
-                        print("Admin id : " + admin)
-                        bot.send_message(admin, "⚠️ WARNING ⚠️\n {username} have sent a suspicious message ...".format(
-                            username=message.from_user.name,
-                            ),
-                            reply_markup=reply_markup)
-                        bot.forward_message(admin, message.chat.id, message.message_id, disable_notification=True, reply_markup=reply_markup)
-
-                break
+                )
+            for admin in admin_ids:
+                if admin:
+                    print("Admin id : " + admin)
+                    bot.send_message(admin, "⚠️ WARNING ⚠️\n {username} has sent a suspicious message ...".format(
+                        username=message.from_user.name,
+                        ),
+                        reply_markup=reply_markup)
+                    bot.forward_message(admin, message.chat.id, message.message_id, disable_notification=True, reply_markup=reply_markup)
 
         if str(message.from_user.id) in admin_ids:
             if (message.text == "/moderator" or message.text == "/moderator@bullhead_bot") and (message.from_user.id in chat_admins):
@@ -139,13 +142,13 @@ def validate_message(bot, message):
                 else:
                     open("admin_ids.txt", 'a').write("\n" + str(message.from_user.id))
                     message.reply_text("Added to moderator list. \n{user} please click [here](t.me/bullhead_bot) and start to allow the bot to notify you. ".format(user=message.from_user.name))
-            
+
             elif message.text.startswith("/ban"):
                 if message.reply_to_message:
                     message.chat.kick_member(
                         message.reply_to_message.from_user.id
                     )
-                    open("blacklist_users.txt", "a").write(int(message.reply_to_message.from_user.id))
+                    open("blacklist_users.txt", "a").write(str(message.reply_to_message.from_user.id) + "\n")
                     if message.text[4:].startswith("@bullhead_bot"): message.text = "/ban " + message.text[18:]
                     bot.send_message(
                         chat_id=message.chat.id,
@@ -157,7 +160,7 @@ def validate_message(bot, message):
                         username=message.reply_to_message.from_user.name,
                         reason=message.text[4:]
                         ))
-            
+
             elif message.text.startswith("/unmoderator") and (message.from_user.id in chat_admins):
                 if message.reply_to_message:
                     for i, line in enumerate(admin_ids):
@@ -175,7 +178,7 @@ def validate_message(bot, message):
                 groupId = regex.group(3)
                 username = regex.group(2)
                 bot.kick_chat_member(chat_id=int(groupId), user_id=int(banId))
-                open("blacklist_users.txt", "a").write(str(banId))
+                open("blacklist_users.txt", "a").write(str(banId) + "\n")
                 bot.send_message(
                     chat_id=groupId,
                     text="{username} has been banned ! 😠 \nReason : Spammer".format(
@@ -192,9 +195,6 @@ def validate_message(bot, message):
                 )
 
 
-                
-
-    
 
 
 if __name__ == '__main__':
