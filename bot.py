@@ -113,11 +113,11 @@ def validate_message(bot, message):
                     username=message.new_chat_members[0]["username"]
                     ))
             return
-    elif message["text"]:
+    elif message.text:
         print("Text message detected : ")
         needBan = False
         for part in warning_text:
-            if part in message["text"].lower():
+            if part in message.text.lower():
                 needBan=True
         if needBan:
             custom_keyboard = [["Ban {} (Username : {}) from {}.".format(str(message.from_user.id), message.from_user.name, str(message.chat.id)), "Don't ban  {}".format( message.from_user.name)  ]]
