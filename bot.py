@@ -74,11 +74,15 @@ def validate_message(bot, message):
     admin_ids = [ x for x in open("admin_ids.txt").read().split("\n") if x]
     if message.chat.type == "private":
         chat_admins = []
+        print("Private message. ")
     else:
         chat_admins = bot.get_chat_administrators(message.chat.id)
+        print("Public message. ")
     chat_admins = [x.user.id for x in chat_admins]
     if message.new_chat_members:
+        print("New user. ")
         if (message.new_chat_members[0]["username"] in blacklist_users) or (str(message.new_chat_members[0]["id"]) in blacklist_users): # Blacklist
+            print("Blacklisted user. ")
             message.chat.kick_member(
                 int(message.new_chat_members[0]["id"])
                 )
@@ -92,8 +96,10 @@ def validate_message(bot, message):
                 username=message.new_chat_members[0]["username"]
                 ))
             return
+        print("Checking username content. ")
         for part in warning_text: #Username ban
             if part in message.new_chat_members[0]["username"]:
+                print("Weird username. ")
                 message.chat.kick_member(
                     message.new_chat_members[0]["id"]
                     )
@@ -108,6 +114,7 @@ def validate_message(bot, message):
                     ))
             return
     elif message["text"]:
+        print("Text message detected : ")
         needBan = False
         for part in warning_text:
             if part in message["text"].lower():
